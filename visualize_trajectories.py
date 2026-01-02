@@ -48,7 +48,7 @@ def visualize_trajectories(filename=None, base_filename='dataset', num_trajector
     if base_filename == 'dataset':
         # Search in all known variations
         variations = ['default', 'delta', 'direct', 'even_simpler', 'simpler', 
-                     'taskspace', 'taskspace_absolutes', 'taskspace_absolutes_random_start', 'random_start']
+                     'taskspace', 'taskspace_absolutes', 'taskspace_absolutes_random_start', 'taskspace_random_smaller', 'random_start']
         all_files = list(files)  # Start with default variation files
         for variation in variations:
             if variation == 'default':

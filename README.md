@@ -115,10 +115,13 @@ The project includes several variations of the pick-and-place task:
 | `taskspace_absolutes` | Task-space absolute | Absolute end-effector poses |
 | `random_start` | Joint-space absolute | Random robot arm starting configurations |
 | `taskspace_absolutes_random_start` | Task-space absolute | Absolute poses with random robot arm starting positions |
+| `taskspace_random_smaller` | Task-space absolute | Absolute poses with random robot arm starting positions, using smaller model architecture (512→256→128) to prevent overfitting |
 
 ## Training Details
 
 - **Model Architecture**: MLP (Multi-Layer Perceptron) with ReLU activations
+  - Most variations: 1024→1024→512→256→output (larger models)
+  - `taskspace_random_smaller`: 512→256→128→output (smaller model to prevent overfitting)
 - **Loss Function**: MSE (Mean Squared Error)
 - **Optimizer**: Adam
 - **Early Stopping**: Patience-based with validation loss monitoring

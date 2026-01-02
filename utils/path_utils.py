@@ -32,6 +32,7 @@ def get_variation_from_base_filename(base_filename):
         'taskspace': 'taskspace',
         'taskspace_absolutes': 'taskspace_absolutes',
         'taskspace_absolutes_random_start': 'taskspace_absolutes_random_start',
+        'taskspace_random_smaller': 'taskspace_random_smaller',
         'random_start': 'random_start',
         'dataset': 'default',
         '': 'default'
@@ -52,6 +53,8 @@ def get_variation_from_model_filename(model_filename):
     basename = os.path.basename(model_filename)
     if basename.startswith("model_taskspace_absolutes_random_start_"):
         return "taskspace_absolutes_random_start"
+    elif basename.startswith("model_taskspace_random_smaller_"):
+        return "taskspace_random_smaller"
     elif basename.startswith("model_taskspace_absolutes_"):
         return "taskspace_absolutes"
     elif basename.startswith("model_delta_"):
@@ -89,6 +92,7 @@ def get_variation_path(base_name='default'):
         'taskspace': 'taskspace',
         'taskspace_absolutes': 'taskspace_absolutes',
         'taskspace_absolutes_random_start': 'taskspace_absolutes_random_start',
+        'taskspace_random_smaller': 'taskspace_random_smaller',
         'random_start': 'random_start',
         'default': 'default'
     }
@@ -128,7 +132,7 @@ def find_model_file(pattern, base_name=None):
         # Search in all variations
         all_models = []
         variations = ['default', 'delta', 'direct', 'even_simpler', 'simpler', 
-                     'taskspace', 'taskspace_absolutes', 'taskspace_absolutes_random_start', 'random_start']
+                     'taskspace', 'taskspace_absolutes', 'taskspace_absolutes_random_start', 'taskspace_random_smaller', 'random_start']
         for variation in variations:
             model_dir = get_model_path(variation)
             pattern_path = os.path.join(model_dir, pattern)

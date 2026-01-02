@@ -667,7 +667,7 @@ def main():
         existing_models = find_model_file(f"model_{num_traj}traj_*.pth", base_name='default')
         # Also check legacy location for backward compatibility
         if not existing_models:
-            existing_models = glob.glob(f"model_{num_traj}traj_*.pth")
+        existing_models = glob.glob(f"model_{num_traj}traj_*.pth")
         model_was_loaded = False
         old_model_path = None
         if existing_models:
@@ -749,7 +749,7 @@ def main():
                 prev_models = find_model_file(f"model_{prev_size}traj_*.pth", base_name='default')
                 # Also check legacy location
                 if not prev_models:
-                    prev_models = glob.glob(f"model_{prev_size}traj_*.pth")
+                prev_models = glob.glob(f"model_{prev_size}traj_*.pth")
                 if prev_models:
                     prev_model_path = prev_models[0]  # Use first match
                     num_prev_trajectories = prev_size
