@@ -1,0 +1,45 @@
+<mujoco model="pickAndPlace">
+    <option gravity="0 0 -9.8"/>
+    <include file="panda.xml"/>
+
+    <visual>
+        <global azimuth="120" elevation="-20"/>
+        <headlight ambient="0.3 0.3 0.3" diffuse="0.1 0.1 0.1"/>
+    </visual>
+
+    <asset>
+        <!-- First texture + material -->
+        <!-- Textures define a pattern, Materials add lighting -->
+        <texture name="floor" type="2d" builtin="checker" rgb1="0.2 0.2 0.2" rgb2="0.5 0.5 0.5" width="512" height="512"/>
+        <material name="floor" texture="floor"/>
+
+        <material name="table_mat" rgba="0.8 0.6 0.4 1"/>
+    </asset>
+
+    <worldbody>
+        <light pos="0 0 1.5" directional="true"/>
+        <geom name="grid" size="1 1 0.01" type="plane" material="floor"/>
+
+        <!-- Table -->
+        <body name="table" pos="0 0.125 0.18">
+            <geom name="table_top" type="box" size="0.2 0.25 0.02" material="table_mat" mass="5"/>
+            <!-- optional legs -->
+            <geom pos="-0.18 -0.20 -0.09" type="cylinder" size="0.02 0.09" material="table_mat" mass="1"/>
+            <geom pos=" 0.18 -0.20 -0.09" type="cylinder" size="0.02 0.09" material="table_mat" mass="1"/>
+            <geom pos="-0.18  0.20 -0.09" type="cylinder" size="0.02 0.09" material="table_mat" mass="1"/>
+            <geom pos=" 0.18  0.20 -0.09" type="cylinder" size="0.02 0.09" material="table_mat" mass="1"/>
+        </body>
+
+        <!-- Block to pick up -->
+        <body name="target" pos="0 0.6 0">
+            <joint type="free"/>
+            <geom name="box" type="box" size="0.03 0.03 0.03" mass="0.0027" rgba="0 0.5 0.5 1"/>
+        </body>
+
+        <!-- Block to visualize trajectory -->
+        <body name="mocap" pos="0.5 0 .5" quat="0 1 0 0" mocap="true">
+            <geom type="box" size=".05 .05 .05" contype="0" conaffinity="0" rgba=".6 .3 .3 .5"/>
+            <site type="sphere" size="0.01" rgba="0 0 1 1" group="1"/>
+        </body>
+    </worldbody>
+</mujoco>

@@ -1,0 +1,73 @@
+<mujoco model="pickAndPlace">
+    <option gravity="0 0 -9.8"/>
+    
+    <!-- Include panda robot, but we'll position it at the table edge -->
+    <include file="panda.xml"/>
+
+    <visual>
+        <global azimuth="120" elevation="-20"/>
+        <headlight ambient="0.3 0.3 0.3" diffuse="0.1 0.1 0.1"/>
+    </visual>
+
+    <asset>
+        <!-- Textures and materials -->
+        <texture name="floor" type="2d" builtin="checker" rgb1="0.2 0.2 0.2" rgb2="0.5 0.5 0.5" width="512" height="512"/>
+        <material name="floor" texture="floor"/>
+
+        <material name="table_mat" rgba="0.8 0.6 0.4 1"/>
+        <material name="placement_box_mat" rgba="0.2 0.8 0.2 0.5"/>  <!-- Green, semi-transparent -->
+        <material name="placement_box_outline" rgba="0.1 0.5 0.1 1"/>  <!-- Dark green for outline -->
+    </asset>
+
+    <worldbody>
+        <light pos="0 0 1.5" directional="true"/>
+        <geom name="grid" size="1 1 0.01" type="plane" material="floor"/>
+
+        <!-- Table: positioned so robot can reach from the edge -->
+        <!-- Table center at (0.3, 0.125, 0.18), size 0.4 x 0.5 (half-widths) - shorter x for reachability -->
+        <!-- Robot is at x=0, so table extends from x=-0.1 to x=0.7 (robot on left side) -->
+        <!-- Table extends from y=-0.375 to y=0.625 (symmetric in y) -->
+        <body name="table" pos="0.3 0 0.18">
+            <geom name="table_top" type="box" size="0.4 0.6 0.02" material="table_mat" mass="5"/>
+            <!-- Table legs (positioned at corners of table) -->
+            <geom pos="-0.38 -0.48 -0.09" type="cylinder" size="0.02 0.09" material="table_mat" mass="1"/>
+            <geom pos=" 0.38 -0.48 -0.09" type="cylinder" size="0.02 0.09" material="table_mat" mass="1"/>
+            <geom pos="-0.38  0.48 -0.09" type="cylinder" size="0.02 0.09" material="table_mat" mass="1"/>
+            <geom pos=" 0.38  0.48 -0.09" type="cylinder" size="0.02 0.09" material="table_mat" mass="1"/>
+        </body>
+
+        <!-- Placement box: on the side of the table (positive y side) -->
+        <!-- Positioned at the far edge of the table, slightly above table surface -->
+        <!-- Shifted to match table position -->
+        <body name="placement_box" pos="0.1 0.47 0.20">
+            <!-- Main placement area (semi-transparent green box) -->
+            <geom name="placement_area" type="box" size="0.15 0.08 0.01" material="placement_box_mat" 
+                  contype="0" conaffinity="0" mass="0.001"/>
+            <!-- Outline for visibility (thin box frame) -->
+            <geom name="placement_outline_top" type="box" size="0.15 0.08 0.002" pos="0 0 0.012" 
+                  material="placement_box_outline" contype="0" conaffinity="0"/>
+            <geom name="placement_outline_bottom" type="box" size="0.15 0.08 0.002" pos="0 0 -0.012" 
+                  material="placement_box_outline" contype="0" conaffinity="0"/>
+            <!-- Visual marker site for easy access -->
+            <site name="placement_target" type="box" size="0.15 0.08 0.01" rgba="0.2 0.8 0.2 0.3" group="1"/>
+        </body>
+
+        <!-- Note: Robot from panda.xml is included and has link0 at (0, 0, 0.19) -->
+        <!-- The robot is already positioned to reach the table from one side -->
+        <!-- Table extends from y=-0.125 to y=0.375, robot at y=0 can reach it -->
+
+        <!-- Block to pick up: spawns on the table surface -->
+        <!-- Table top is at z=0.18 + 0.02 = 0.20, so block center should be at z=0.20 + block_half_height -->
+        <!-- Blocks will spawn randomly on table, but initial position is on table -->
+        <body name="target" pos="0 0.0 0.203">
+            <joint type="free"/>
+            <geom name="box" type="box" size="0.03 0.03 0.03" mass="0.0027" rgba="0 0.5 0.5 1"/>
+        </body>
+
+        <!-- Block to visualize trajectory (mocap) -->
+        <body name="mocap" pos="0.5 0 .5" quat="0 1 0 0" mocap="true">
+            <geom type="box" size=".05 .05 .05" contype="0" conaffinity="0" rgba=".6 .3 .3 .5"/>
+            <site type="sphere" size="0.01" rgba="0 0 1 1" group="1"/>
+        </body>
+    </worldbody>
+</mujoco>
