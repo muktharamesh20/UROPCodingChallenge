@@ -219,8 +219,8 @@ def main():
     results_file = os.path.join(variation_dir, 'training_results_taskspace_random_smaller.json')
     results_csv = os.path.join(variation_dir, 'training_results_taskspace_random_smaller.csv')
     
-    # Training configurations
-    data_sizes = [500, 700, 900, 1100, 1300, 1500]
+    # Training configurations - double data size each time
+    data_sizes = [500, 1000, 2000, 4000]
     use_finetuning = True
     finetune_lr_scale = 0.5
     explicit_pretrained_model = None
@@ -292,7 +292,7 @@ def main():
         # Load and filter dataset
         print(f"\nLoading and filtering dataset...")
         states_subset, actions_subset, trajectory_ids_subset, steps_subset = load_and_filter_dataset(
-            base_filename, target_trajectories, filter_top_pct=0.2,
+            base_filename, target_trajectories, filter_top_pct=0.05,
             recovery_filename=None, use_recovery=False,
             use_sin_cos_encoding=USE_SIN_COS_ENCODING)
         
