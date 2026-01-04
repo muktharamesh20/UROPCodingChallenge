@@ -114,6 +114,15 @@ class MLP(nn.Module):
             self.fc3 = nn.Linear(256, 128)
             self.relu3 = nn.ReLU()
             self.fc4 = nn.Linear(128, output_size)
+        elif architecture == 'taskspace_even_smaller':
+            # Taskspace even smaller architecture: 256 -> 128 -> 64 -> output
+            self.fc1 = nn.Linear(input_size, 256)
+            self.relu1 = nn.ReLU()
+            self.fc2 = nn.Linear(256, 128)
+            self.relu2 = nn.ReLU()
+            self.fc3 = nn.Linear(128, 64)
+            self.relu3 = nn.ReLU()
+            self.fc4 = nn.Linear(64, output_size)
         elif architecture == 'new' or architecture == 'simpler':
             # New architecture: 256 -> 256 -> 64 -> output
             self.fc1 = nn.Linear(input_size, 256)
@@ -283,6 +292,7 @@ def load_model(model_path, device=None):
         (1024, 1024, 512, 256): 'direct',      # New direct/even_simpler (with fc5)
         (512, 512, 128): 'old_direct',         # Old direct/even_simpler: 512→512→128→output
         (512, 256, 128): 'taskspace_smaller',  # Taskspace random smaller: 512→256→128→output
+        (256, 128, 64): 'taskspace_even_smaller',  # Taskspace random even smaller: 256→128→64→output
         (256, 256, 64): 'new',                 # Standard: 256→256→64→output
         (128, 64): 'old',                      # Old: 128→64→output
     }

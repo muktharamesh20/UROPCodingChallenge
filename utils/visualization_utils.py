@@ -34,7 +34,7 @@ def detect_environment_from_filename(filename_or_path):
         basename = str(filename_or_path).lower()
     
     # Detect variation flags (order matters - check more specific first)
-    use_taskspace_absolutes = "taskspace_absolutes" in basename or "taskspace_random_smaller" in basename
+    use_taskspace_absolutes = "taskspace_absolutes" in basename or "taskspace_random_smaller" in basename or "taskspace_random_even_smaller" in basename
     use_taskspace = "taskspace" in basename and not use_taskspace_absolutes
     use_direct = "direct" in basename and not use_taskspace and not use_taskspace_absolutes
     use_delta = "delta" in basename and not use_direct and not use_taskspace and not use_taskspace_absolutes

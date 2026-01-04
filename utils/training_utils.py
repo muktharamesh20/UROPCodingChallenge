@@ -924,21 +924,36 @@ def train_and_evaluate_step(target_trajectories, states, actions, traj_ids, step
     
     if use_action_normalization:
         if joint_ranges is not None:
-            print(f"  Normalizing actions to [0, 1] range...")
+            print(f"  Normalizing actions to [0, 1] range using joint ranges...")
             actions_normalized = np.array([normalize_action(action, joint_ranges, clamp_input=False) for action in actions])
             save_action_scaler(joint_ranges, target_trajectories, base_name=model_name_prefix)
             action_scaler = joint_ranges
         else:
-            # Try to load existing action scaler
+            # For task-space actions (no joint ranges), use StandardScaler instead
+            # Try to load existing action scaler (could be StandardScaler or joint_ranges)
             action_scaler = load_action_scaler(target_trajectories, base_name=model_name_prefix)
             if action_scaler is not None:
-                print(f"  Loading action scaler and normalizing actions...")
-                actions_normalized = np.array([normalize_action(action, action_scaler, clamp_input=False) for action in actions])
-                joint_ranges = action_scaler
+                if isinstance(action_scaler, StandardScaler):
+                    print(f"  Loading action StandardScaler and normalizing actions...")
+                    actions_normalized = action_scaler.transform(actions)
+                else:
+                    # Old format: joint_ranges
+                    print(f"  Loading action scaler (joint ranges) and normalizing actions...")
+                    actions_normalized = np.array([normalize_action(action, action_scaler, clamp_input=False) for action in actions])
+                    joint_ranges = action_scaler
             else:
-                print(f"  ⚠️  No joint ranges provided, training without action normalization")
-                actions_normalized = actions
-                action_scaler = None
+                # Fit new StandardScaler for task-space actions
+                print(f"  Fitting StandardScaler for task-space actions (no joint ranges available)...")
+                action_scaler = StandardScaler()
+                actions_normalized = action_scaler.fit_transform(actions)
+                # Save the StandardScaler
+                scaler_dir = get_scaler_path(model_name_prefix)
+                os.makedirs(scaler_dir, exist_ok=True)
+                scaler_file = os.path.join(scaler_dir, f"action_scaler_{model_name_prefix}_{target_trajectories}traj.pkl")
+                with open(scaler_file, 'wb') as f:
+                    pickle.dump(action_scaler, f)
+                print(f"    Action means: {action_scaler.mean_[:5]}... (showing first 5)")
+                print(f"    Action stds: {action_scaler.scale_[:5]}... (showing first 5)")
     else:
         # No normalization for delta/task-space actions
         print(f"  Training on {model_name_prefix} actions (no normalization)")
@@ -982,7 +997,7 @@ def train_model_unified(states, actions, trajectory_ids=None, steps=None, epochs
                         patience=25, min_delta=1e-6, state_scaler=None, max_epochs=1000, min_epochs=100, 
                         pretrained_model_path=None, MLP_class=None, finetune_lr_scale=0.5,
                         lr_scheduler='plateau', lr_decay_factor=0.5, lr_patience=10, lr_step_size=30, lr_gamma=0.1,
-                        weight_decay=1e-5):
+                        weight_decay=1e-4):
     """
     Unified train_model function for all pipelines.
     Train MLP model with early stopping based on validation loss.
