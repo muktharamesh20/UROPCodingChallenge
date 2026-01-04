@@ -650,8 +650,48 @@ def load_and_filter_dataset(base_filename, target_trajectories, filter_top_pct=0
         traj_ids: Trajectory IDs
         steps: Optional step indices
     """
-    data = load_dataset_csv(filename=None, base_filename=base_filename, 
-                            max_trajectories=target_trajectories)
+    # Check for preprocessed file first (much faster)
+    variation = get_variation_from_base_filename(base_filename)
+    dataset_dir = get_dataset_path(variation)
+    preprocessed_file = os.path.join(dataset_dir, f"{base_filename}_preprocessed.pkl")
+    
+    if os.path.exists(preprocessed_file):
+        print(f"  Loading from preprocessed file: {os.path.basename(preprocessed_file)}")
+        with open(preprocessed_file, 'rb') as f:
+            preprocessed_data = pickle.load(f)
+        
+        # Extract data from preprocessed file
+        states_preprocessed = preprocessed_data['states']
+        actions_preprocessed = preprocessed_data['actions']
+        traj_ids_preprocessed = preprocessed_data['trajectory_ids']
+        steps_preprocessed = preprocessed_data.get('steps', None)
+        
+        # Limit to target_trajectories if needed
+        unique_traj_ids_preprocessed = np.unique(traj_ids_preprocessed)
+        if len(unique_traj_ids_preprocessed) > target_trajectories:
+            # Take first target_trajectories unique trajectory IDs
+            traj_ids_to_use = unique_traj_ids_preprocessed[:target_trajectories]
+            mask = np.isin(traj_ids_preprocessed, traj_ids_to_use)
+            states_preprocessed = states_preprocessed[mask]
+            actions_preprocessed = actions_preprocessed[mask]
+            traj_ids_preprocessed = traj_ids_preprocessed[mask]
+            if steps_preprocessed is not None:
+                steps_preprocessed = steps_preprocessed[mask]
+        
+        # Convert to dict format for compatibility
+        data = {
+            'arm_states': states_preprocessed[:, :21],  # First 21 dims are arm state
+            'block_states': states_preprocessed[:, 21:],  # Remaining 10 dims are block state
+            'actions': actions_preprocessed,
+            'trajectory_ids': traj_ids_preprocessed,
+            'isDone': np.zeros(len(traj_ids_preprocessed), dtype=bool)  # Not used for filtering
+        }
+        if steps_preprocessed is not None:
+            data['steps'] = steps_preprocessed
+    else:
+        # Fall back to loading from CSV
+        data = load_dataset_csv(filename=None, base_filename=base_filename, 
+                                max_trajectories=target_trajectories)
     
     # Get states and actions
     # Note: get_state_action_pairs returns 31D states (21D arm + 10D block)
@@ -941,7 +981,8 @@ def train_and_evaluate_step(target_trajectories, states, actions, traj_ids, step
 def train_model_unified(states, actions, trajectory_ids=None, steps=None, epochs=None, batch_size=256, lr=0.001, 
                         patience=25, min_delta=1e-6, state_scaler=None, max_epochs=1000, min_epochs=100, 
                         pretrained_model_path=None, MLP_class=None, finetune_lr_scale=0.5,
-                        lr_scheduler='plateau', lr_decay_factor=0.5, lr_patience=10, lr_step_size=30, lr_gamma=0.1):
+                        lr_scheduler='plateau', lr_decay_factor=0.5, lr_patience=10, lr_step_size=30, lr_gamma=0.1,
+                        weight_decay=1e-5):
     """
     Unified train_model function for all pipelines.
     Train MLP model with early stopping based on validation loss.
@@ -1037,6 +1078,13 @@ def train_model_unified(states, actions, trajectory_ids=None, steps=None, epochs
             print(f"  This indicates a bug in trajectory-aware splitting.")
         else:
             print(f"  ✓ Trajectory-aware split: {len(train_traj_set)} train trajectories, {len(val_traj_set)} validation trajectories (no overlap)")
+            # Diagnostic: Check if there are differences in action magnitudes
+            train_action_magnitude = np.mean(np.linalg.norm(y_train, axis=1))
+            val_action_magnitude = np.mean(np.linalg.norm(y_val, axis=1))
+            print(f"    Train action magnitude (mean): {train_action_magnitude:.6f}")
+            print(f"    Val action magnitude (mean): {val_action_magnitude:.6f}")
+            if abs(train_action_magnitude - val_action_magnitude) / train_action_magnitude > 0.1:
+                print(f"    ⚠️  Warning: Significant difference in action magnitudes between train/val sets")
     else:
         # No trajectory IDs available - use standard random split
         # This is acceptable if data doesn't have trajectory structure
@@ -1061,7 +1109,11 @@ def train_model_unified(states, actions, trajectory_ids=None, steps=None, epochs
     
     val_batch_size = min(batch_size * 4, 32768)
     
-    if train_traj_ids is not None and len(train_traj_ids) == len(X_train):
+    # PyTorch's WeightedRandomSampler has a limit of 2^24 samples (16,777,216)
+    # For larger datasets, fall back to regular shuffle
+    MAX_SAMPLER_SIZE = 2**24 - 1000000  # Use 15M as safe threshold (leave some margin)
+    
+    if train_traj_ids is not None and len(train_traj_ids) == len(X_train) and len(X_train) < MAX_SAMPLER_SIZE:
         unique_trajs, counts = np.unique(train_traj_ids, return_counts=True)
         
         traj_weights = 1.0 / (counts + 1e-8)
@@ -1086,6 +1138,9 @@ def train_model_unified(states, actions, trajectory_ids=None, steps=None, epochs
         print(f"    Using weighted sampling: {len(unique_trajs)} trajectories, weight range: [{traj_weights.min():.4f}, {traj_weights.max():.4f}]")
         print(f"    Each trajectory contributes equally regardless of length")
     else:
+        if train_traj_ids is not None and len(train_traj_ids) == len(X_train) and len(X_train) >= MAX_SAMPLER_SIZE:
+            print(f"    Dataset too large ({len(X_train):,} samples) for WeightedRandomSampler (limit: {MAX_SAMPLER_SIZE:,})")
+            print(f"    Falling back to regular shuffle (weighted sampling disabled for large datasets)")
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                                  num_workers=0, pin_memory=False)  # MPS doesn't support pin_memory or prefetch_factor with num_workers=0
     
@@ -1112,9 +1167,9 @@ def train_model_unified(states, actions, trajectory_ids=None, steps=None, epochs
     print(f"  Moving model to {device}...")
     model.to(device)
     
-    print(f"  Setting up optimizer (initial lr={lr})...")
+    print(f"  Setting up optimizer (initial lr={lr}, weight_decay={weight_decay})...")
     criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     
     max_epochs_to_use = epochs if epochs is not None else max_epochs
     
@@ -1248,7 +1303,7 @@ def train_model_unified(states, actions, trajectory_ids=None, steps=None, epochs
                     best_model_state = model.state_dict().copy()
                 else:
                     patience_counter += 1
-                
+            
                 if scheduler is not None and isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                     scheduler.step(val_loss)
             

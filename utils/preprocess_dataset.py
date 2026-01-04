@@ -64,7 +64,8 @@ def preprocess_and_save_dataset(output_file=None, base_filename='dataset'):
         'unique_trajectory_ids': unique_traj_ids,
         'trajectory_id_to_indices': trajectory_id_to_indices,
         'num_trajectories': num_trajectories_total,
-        'num_samples': len(states)
+        'num_samples': len(states),
+        'steps': data.get('steps', None)  # Include steps if available
     }
     
     print(f"\nSaving to {output_file}...")
@@ -78,9 +79,9 @@ def preprocess_and_save_dataset(output_file=None, base_filename='dataset'):
     return preprocessed_data
 
 if __name__ == '__main__':
-    output_file = 'dataset_preprocessed.pkl'
+    base_filename = 'dataset'
     if len(sys.argv) > 1:
-        output_file = sys.argv[1]
+        base_filename = sys.argv[1]
     
-    preprocess_and_save_dataset(output_file=output_file)
+    preprocess_and_save_dataset(base_filename=base_filename)
 

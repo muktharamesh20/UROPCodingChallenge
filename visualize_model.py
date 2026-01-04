@@ -326,7 +326,7 @@ def load_model(model_path, device=None):
     print(f"✓ Model loaded: input_size={input_size}, output_size={output_size}, architecture={architecture}")
     return model, input_size
 
-def visualize_model(model_path=None, num_trials=5, action_scale=0.1, delay=0.002, use_standardized=None, max_angvel=0.3, action_smoothing=None, pose_update_frequency=None):
+def visualize_model(model_path=None, num_trials=5, action_scale=0.1, delay=0.002, use_standardized=None, max_angvel=0.3, action_smoothing=None, pose_update_frequency=None, action_average_window=None):
     """
     Visualize a trained model running in MuJoCo.
     
@@ -342,6 +342,8 @@ def visualize_model(model_path=None, num_trials=5, action_scale=0.1, delay=0.002
                          If None, will prompt user to choose.
         pose_update_frequency: How often to update desired pose (1 = every step, 2 = every 2 steps, etc.).
                               Only applies to taskspace models. If None, will prompt user to choose.
+        action_average_window: Number of previous actions to average over (1 = no averaging, higher = more smoothing).
+                              If None, will prompt user to choose.
     """
     # List models if none specified
     if model_path is None:
@@ -611,6 +613,32 @@ def visualize_model(model_path=None, num_trials=5, action_scale=0.1, delay=0.002
     else:
         pose_update_frequency = 1  # Not used for non-taskspace models
     
+    # Ask user how many positions to average over
+    if action_average_window is None:
+        print("\n  How many previous actions to average over? (1=no averaging, higher=more smoothing, default: 1): ", end="")
+        try:
+            choice = input().strip()
+            if choice == '':
+                action_average_window = 1
+            else:
+                action_average_window = max(1, int(choice))
+            if action_average_window > 1:
+                print(f"  Averaging over last {action_average_window} actions")
+            else:
+                print("  No action averaging (using raw model output)")
+        except:
+            action_average_window = 1
+            print("  No action averaging (using raw model output)")
+    elif action_average_window > 1:
+        print(f"  Averaging over last {action_average_window} actions")
+    else:
+        print("  No action averaging (using raw model output)")
+    
+    if use_pose_update_frequency:
+        print(f"  Updating desired pose every {pose_update_frequency} step(s)")
+    else:
+        pose_update_frequency = 1  # Not used for non-taskspace models
+    
     successes = 0
     
     for trial in range(num_trials):
@@ -726,6 +754,9 @@ def visualize_model(model_path=None, num_trials=5, action_scale=0.1, delay=0.002
         # Reset action smoothing for each trial
         smoothed_action = None
         
+        # Reset action averaging for each trial
+        action_history = []  # Store last N actions for averaging
+        
         # Reset pose update tracking for each trial
         last_desired_pos = None
         last_desired_quat = None
@@ -773,9 +804,18 @@ def visualize_model(model_path=None, num_trials=5, action_scale=0.1, delay=0.002
                     smoothed_action = raw_action.copy()
                 else:
                     smoothed_action = action_smoothing * smoothed_action + (1 - action_smoothing) * raw_action
-                action_normalized = smoothed_action
+                action_to_average = smoothed_action
             else:
-                action_normalized = raw_action
+                action_to_average = raw_action
+            
+            # Apply simple moving average over last N actions (if enabled)
+            if action_average_window > 1:
+                action_history.append(action_to_average.copy())
+                if len(action_history) > action_average_window:
+                    action_history.pop(0)  # Keep only last N actions
+                action_normalized = np.mean(action_history, axis=0)
+            else:
+                action_normalized = action_to_average
             
             # Handle different action types
             if use_taskspace_absolutes:
@@ -1103,7 +1143,8 @@ def main():
         use_standardized=None,
         max_angvel=0.3,
         action_smoothing=None,
-        pose_update_frequency=None
+        pose_update_frequency=None,
+        action_average_window=None
     )
 
 if __name__ == "__main__":

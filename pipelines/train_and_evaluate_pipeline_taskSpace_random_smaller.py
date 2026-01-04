@@ -220,7 +220,7 @@ def main():
     results_csv = os.path.join(variation_dir, 'training_results_taskspace_random_smaller.csv')
     
     # Training configurations - double data size each time
-    data_sizes = [500, 1000, 2000, 4000]
+    data_sizes = [4000]  # Starting at 4000 (500, 1000, 2000 already completed)
     use_finetuning = True
     finetune_lr_scale = 0.5
     explicit_pretrained_model = None
@@ -244,21 +244,7 @@ def main():
         print(f"{'='*70}\n")
         
         # Check current dataset size
-        files = find_dataset_files(base_filename, pattern='*.csv')
-        
-        num_trajectories_total = 0
-        if files:
-            for filename in files:
-                try:
-                    if os.path.getsize(filename) == 0:
-                        continue
-                    chunk_size = 100000
-                    traj_ids_seen = set()
-                    for chunk in pd.read_csv(filename, chunksize=chunk_size, usecols=['trajectory_id']):
-                        traj_ids_seen.update(chunk['trajectory_id'].unique())
-                    num_trajectories_total = max(num_trajectories_total, len(traj_ids_seen))
-                except (pd.errors.EmptyDataError, ValueError):
-                    continue
+        num_trajectories_total, _ = count_trajectories(base_filename)
         
         # Collect more data if needed (incremental collection)
         if num_trajectories_total < target_trajectories:
@@ -274,20 +260,7 @@ def main():
             )
             
             # Reload to get accurate count
-            files = find_dataset_files(base_filename, pattern='*.csv')
-            num_trajectories_total = 0
-            if files:
-                for filename in files:
-                    try:
-                        if os.path.getsize(filename) == 0:
-                            continue
-                        chunk_size = 100000
-                        traj_ids_seen = set()
-                        for chunk in pd.read_csv(filename, chunksize=chunk_size, usecols=['trajectory_id']):
-                            traj_ids_seen.update(chunk['trajectory_id'].unique())
-                        num_trajectories_total = max(num_trajectories_total, len(traj_ids_seen))
-                    except (pd.errors.EmptyDataError, ValueError):
-                        continue
+            num_trajectories_total, _ = count_trajectories(base_filename)
         
         # Load and filter dataset
         print(f"\nLoading and filtering dataset...")
