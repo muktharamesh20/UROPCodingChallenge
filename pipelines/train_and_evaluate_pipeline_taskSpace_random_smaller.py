@@ -221,7 +221,7 @@ def main():
     
     # Training configurations - double data size each time
     data_sizes = [4000]  # Starting at 4000 (500, 1000, 2000 already completed)
-    use_finetuning = True
+    use_finetuning = False
     finetune_lr_scale = 0.5
     explicit_pretrained_model = None
     
